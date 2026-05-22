@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Stock Adaptable - HAF</title>
+    <!-- Configuraciones de PWA para dispositivos móviles -->
+    <meta name="theme-color" content="#2563eb">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <!-- Tailwind CSS para diseño moderno -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -103,14 +107,14 @@
             <button id="btn-alta" onclick="cambiarMenu('alta')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-blue-500 text-white shadow">
                 1. Alta Teórico
             </button>
-            <button id="btn-conteo" onclick="cambiarMenu('conteo')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200">
+            <button id="btn-conteo" onclick="cambiarMenu('conteo')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-green-600 text-white shadow">
                 2. Realizar Conteo
             </button>
-            <button id="btn-reporte" onclick="cambiarMenu('reporte')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200">
+            <button id="btn-reporte" onclick="cambiarMenu('reporte')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-purple-600 text-white shadow">
                 3. Ver Reporte
             </button>
         </div>
-        <!-- SECCIÓN 1: ALTA DE PRODUCTOS (TEÓRICO) -->
+                <!-- SECCIÓN 1: ALTA DE PRODUCTOS (TEÓRICO) -->
         <section id="sec-alta" class="bg-white p-6 rounded-xl shadow-md space-y-4 no-print">
             <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Ingreso de Producto (Base Teórica)</h2>
             <form id="form-alta" onsubmit="guardarAlta(event)" class="space-y-4">
@@ -261,12 +265,12 @@
             </div>
         </div>
     </div>
-    <!-- LÓGICA DE JAVASCRIPT: PARTE A -->
+        <!-- LÓGICA DE JAVASCRIPT: PARTE A -->
     <script>
         let productoSeleccionadoCodigo = null;
         let sectorSeleccionadoNombre = null;
 
-        // SEGURO DE ARRANQUE: Ejecuta cuando el árbol DOM está completamente estructurado
+        // Arranque controlado una vez estructurado el DOM
         document.addEventListener("DOMContentLoaded", function() {
             if (!localStorage.getItem('inventario_db')) {
                 localStorage.setItem('inventario_db', JSON.stringify({}));
@@ -277,7 +281,7 @@
             renderizarSectoresSelect();
         });
 
-        // --- MANEJO DE NAVEGACIÓN ---
+        // --- MANEJO DE PESTAÑAS ---
         function cambiarMenu(menu) {
             const secAlta = document.getElementById('sec-alta');
             const secConteo = document.getElementById('sec-conteo');
@@ -312,7 +316,7 @@
             }
         }
 
-        // --- GESTIÓN DE ÁREAS / SECTORES ---
+        // --- GESTIÓN DE SECTORES ---
         function renderizarSectoresSelect() {
             const select = document.getElementById('conteo-sector');
             if (!select) return;
@@ -370,7 +374,7 @@
             }
         }
 
-        // --- MENÚ 1: ENTRADA DE BASE TEÓRICA ---
+        // --- ACCIONES DE FORMULARIO ---
         function guardarAlta(e) {
             e.preventDefault();
             const codigo = document.getElementById('alta-codigo').value.trim();
@@ -392,8 +396,6 @@
             document.getElementById('alta-codigo').focus();
         }
 
-        // --- MANEJO DE ENTER Y FOCO INTERACTIVO EN CONTEO ---
-        // Se ejecuta una vez que la ventana termine el mapeo para asegurar la existencia del nodo
         window.addEventListener("load", function() {
             const inputCod = document.getElementById('conteo-codigo');
             if(inputCod) {
@@ -457,7 +459,7 @@
             document.getElementById('conteo-cantidad').value = '';
             document.getElementById('conteo-codigo').focus();
         }
-        // --- GENERACIÓN DEL REPORTE MULTI-ENTORNO (ESCRITORIO / MÓVIL ROTADO) ---
+                // --- GENERACIÓN DEL REPORTE DUAL DINÁMICO (ESCRITORIO / MÓVIL) ---
         function generarReporteDinamico() {
             const headerRow = document.getElementById('tabla-headers');
             const tbody = document.getElementById('tabla-reporte-body');
@@ -473,7 +475,6 @@
             const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
             const articulos = Object.values(db);
 
-            // Cabecera Escritorio
             let htmlHeaders = `<th class="p-3 border">Código</th><th class="p-3 border">Descripción</th>`;
             sectores.forEach(sec => { htmlHeaders += `<th class="p-3 border text-center">${sec.toUpperCase()}</th>`; });
             htmlHeaders += `<th class="p-3 border text-center">Teórico</th><th class="p-3 border text-center">Diferencia</th>`;
@@ -497,7 +498,6 @@
                     }
                     totalContado += totalSector;
                     
-                    // Botón Sector Escritorio
                     htmlSectoresEscritorio += `
                         <td class="p-3 border text-center">
                             <button type="button" onclick="abrirAuditoria('${art.codigo}', '${sec}')" class="text-blue-600 font-medium hover:underline block w-full text-center">
@@ -505,7 +505,6 @@
                             </button>
                         </td>`;
                     
-                    // Botón Sector Celular
                     htmlSectoresMovilFilas += `
                         <div class="flex justify-between items-center py-2 border-b border-gray-100 text-sm">
                             <span class="text-gray-500 font-medium capitalize">${sec}:</span>
@@ -530,7 +529,7 @@
                     colorBgMovilDiferencia = 'bg-red-100 text-red-800 font-bold';
                 }
 
-                // Pintar Fila Escritorio
+                // Inyección Escritorio
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition";
                 tr.innerHTML = `
@@ -546,7 +545,7 @@
                 `;
                 tbody.appendChild(tr);
 
-                // Pintar Tarjeta Móvil
+                // Inyección Tarjeta Celular
                 const cardMovil = document.createElement('div');
                 cardMovil.className = "bg-white border rounded-xl p-4 shadow-sm space-y-3";
                 cardMovil.innerHTML = `
@@ -573,7 +572,7 @@
             });
         }
 
-        // --- CONTROL DEL MODAL DE HISTORIAL CRONOLÓGICO ---
+        // --- COMPONENTES MODAL HISTORIAL ---
         function abrirAuditoria(codigo, sector) {
             productoSeleccionadoCodigo = codigo;
             sectorSeleccionadoNombre = sector;
@@ -655,7 +654,7 @@
             }
         }
 
-        // --- CONTROL DEL MODAL STOCK TEÓRICO ---
+        // --- GESTIÓN DEL MODAL TEÓRICO ---
         function abrirModificarTeorico(codigo) {
             productoSeleccionadoCodigo = codigo;
             const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
@@ -669,6 +668,13 @@
             document.getElementById('modal-teorico').classList.remove('hidden');
             setTimeout(() => document.getElementById('modal-teorico-input').focus(), 100);
         }
+
+        document.getElementById('modal-teorico-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                guardarCambioTeorico();
+            }
+        });
 
         function cerrarModalTeorico() {
             document.getElementById('modal-teorico').classList.add('hidden');
@@ -692,7 +698,7 @@
             }
         }
 
-        // --- UTILERÍA GLOBAL Y REPORTES DE MENSAJES ---
+        // --- UTILERÍA GLOBAL ---
         function ejecutarImpresion() {
             const ahora = new Date();
             const opciones = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
@@ -710,11 +716,23 @@
         }
 
         function limpiarTodo() {
-            if (confirm('¿Desea vaciar por completo la información de conteos y áreas de este navegador?')) {
+            if (confirm('¿Desea borrar toda la información de la base de datos local?')) {
                 localStorage.clear();
                 location.reload();
             }
         }
+
+        // --- REGISTRO AUTOMÁTICO DEL SERVICE WORKER (PWA) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js').then(function(reg) {
+                    console.log('ServiceWorker registrado con éxito en el alcance: ', reg.scope);
+                }, function(err) {
+                    console.log('Fallo en el registro del ServiceWorker: ', err);
+                });
+            });
+        }
     </script>
 </body>
 </html>
+
