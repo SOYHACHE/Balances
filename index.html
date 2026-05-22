@@ -210,7 +210,38 @@
             </div>
         </div>
     </div>
-        <script>
+
+    <div id="modal-producto" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden no-print z-50 modal-backdrop">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 mx-4 space-y-4">
+            <div class="flex justify-between items-start border-b pb-2">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900">Modificar Datos de Producto</h3>
+                    <p class="text-xs text-gray-500">Ajuste directo de credenciales de catálogo.</p>
+                </div>
+                <button onclick="cerrarModalProducto()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Código PLU (Identificador Único) *</label>
+                    <input type="number" id="modal-prod-plu" class="w-full p-2.5 border rounded-lg font-mono font-bold bg-gray-50" readonly title="El PLU base no es alterable para preservar integridad relacional">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Código EAN / Barras</label>
+                    <input type="number" id="modal-prod-ean" class="w-full p-2.5 border rounded-lg font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">Descripción / Nombre Comercial Comercial *</label>
+                    <input type="text" id="modal-prod-desc" class="w-full p-2.5 border rounded-lg font-bold">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button onclick="cerrarModalProducto()" class="bg-gray-100 py-2.5 rounded-lg text-sm">Cancelar</button>
+                <button onclick="guardarCambiosProductoGlobal()" class="bg-blue-600 text-white py-2.5 rounded-lg text-sm shadow font-medium">Guardar Cambios</button>
+            </div>
+        </div>
+        </div>
+    
+    <script>
         let productoSeleccionadoCodigo = null;
         let sectorSeleccionadoNombre = null;
         let html5QrCode = null;
@@ -354,11 +385,10 @@
             if (!busqueda) return;
             const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
             
-            // Intenta buscar primero asumiendo que es PLU, sino busca por campo EAN
             let encontrado = db[busqueda] || Object.values(db).find(p => p.ean === busqueda) || null;
 
             if (encontrado) {
-                hiddenPlu.value = encontrado.codigo; // Guardamos enlace clave
+                hiddenPlu.value = encontrado.codigo;
                 inputDesc.value = encontrado.descripcion;
                 inputCant.focus();
                 inputCant.select();
@@ -403,7 +433,7 @@
             document.getElementById('conteo-descripcion').value = 'Aún no se buscó ningún producto';
             document.getElementById('conteo-buscador').focus();
         }
-                    function generarReporteDinamico() {
+                function generarReporteDinamico() {
             const headerRow = document.getElementById('tabla-headers');
             const tbody = document.getElementById('tabla-reporte-body');
             const contenedorMovil = document.getElementById('vista-movil');
@@ -442,12 +472,33 @@
                 if (diferencia > 0) { colorD = 'text-green-600 font-bold'; stringDiferencia = `Sobran (${diferencia})`; bgM = 'bg-green-100 text-green-800 font-bold'; }
                 else if (diferencia < 0) { colorD = 'text-red-600 font-bold'; stringDiferencia = `Faltan (${Math.abs(diferencia)})`; bgM = 'bg-red-100 text-red-800 font-bold'; }
 
+                // Inyección Escritorio con celdas de texto editables mediante clic
                 const tr = document.createElement('tr'); tr.className = "hover:bg-gray-50";
-                tr.innerHTML = `<td class="p-3 border font-mono font-medium">${art.codigo}</td><td class="p-3 border font-mono text-xs text-gray-500">${art.ean || '-'}</td><td class="p-3 border">${art.descripcion}</td>${htmlSectoresEscritorio}<td class="p-3 border text-center font-medium bg-purple-50"><button type="button" onclick="abrirModificarTeorico('${art.codigo}')" class="text-purple-700 font-bold block w-full">${art.teorico}</button></td><td class="p-3 border text-center ${colorD}">${stringDiferencia}</td>`;
+                tr.innerHTML = `
+                    <td class="p-3 border font-mono font-medium"><button type="button" onclick="abrirModificarProductoGlobal('${art.codigo}')" class="text-blue-600 hover:underline text-left block w-full font-bold">${art.codigo}</button></td>
+                    <td class="p-3 border font-mono text-xs text-gray-500"><button type="button" onclick="abrirModificarProductoGlobal('${art.codigo}')" class="text-blue-600 hover:underline text-left block w-full">${art.ean || '[Asignar]'}</button></td>
+                    <td class="p-3 border text-gray-800"><button type="button" onclick="abrirModificarProductoGlobal('${art.codigo}')" class="text-gray-800 hover:underline text-left block w-full font-medium">${art.descripcion}</button></td>
+                    ${htmlSectoresEscritorio}
+                    <td class="p-3 border text-center font-medium bg-purple-50"><button type="button" onclick="abrirModificarTeorico('${art.codigo}')" class="text-purple-700 font-bold block w-full">${art.teorico}</button></td>
+                    <td class="p-3 border text-center ${colorD}">${stringDiferencia}</td>
+                `;
                 tbody.appendChild(tr);
 
+                // Tarjeta Celular con bloque de título editable mediante clic
                 const card = document.createElement('div'); card.className = "bg-white border rounded-xl p-4 shadow-sm space-y-2";
-                card.innerHTML = `<div class="bg-gray-800 text-white p-2 -mx-4 -mt-4 rounded-t-xl flex justify-between text-xs font-mono"><span>PLU: ${art.codigo}</span><span>EAN: ${art.ean || '-'}</span></div><div class="text-sm font-bold text-gray-800">${art.descripcion}</div><div class="bg-gray-50 p-2 rounded-lg border">${htmlSectoresMovilFilas}</div><div class="flex justify-between items-center text-xs"><span>Teórico Base:</span><button type="button" onclick="abrirModificarTeorico('${art.codigo}')" class="text-purple-700 font-bold underline">${art.teorico} un</button></div><div class="p-2 rounded-lg text-center text-xs uppercase tracking-wide ${bgM}">${stringDiferencia}</div>`;
+                card.innerHTML = `
+                    <div onclick="abrirModificarProductoGlobal('${art.codigo}')" class="bg-gray-800 text-white p-2 -mx-4 -mt-4 rounded-t-xl flex justify-between text-xs font-mono cursor-pointer hover:bg-gray-700 transition">
+                        <span>PLU: ${art.codigo}</span>
+                        <span>EAN: ${art.ean || '[Asignar]'}</span>
+                    </div>
+                    <div onclick="abrirModificarProductoGlobal('${art.codigo}')" class="text-sm font-bold text-gray-800 hover:text-blue-600 transition cursor-pointer underline decoration-dotted">${art.descripcion}</div>
+                    <div class="bg-gray-50 p-2 rounded-lg border">${htmlSectoresMovilFilas}</div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span>Teórico Base:</span>
+                        <button type="button" onclick="abrirModificarTeorico('${art.codigo}')" class="text-purple-700 font-bold underline">${art.teorico} un</button>
+                    </div>
+                    <div class="p-2 rounded-lg text-center text-xs uppercase tracking-wide ${bgM}">${stringDiferencia}</div>
+                `;
                 contenedorMovil.appendChild(card);
             });
         }
@@ -524,6 +575,47 @@
 
         function cerrarModal() { document.getElementById('modal-auditoria').classList.add('hidden'); }
 
+        // --- COMPONENTES MODAL EDICIÓN GLOBAL (NUEVO) ---
+        function abrirModificarProductoGlobal(codigo) {
+            productoSeleccionadoCodigo = codigo;
+            const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            const art = db[codigo];
+            if (!art) return;
+
+            document.getElementById('modal-prod-plu').value = art.codigo;
+            document.getElementById('modal-prod-ean').value = art.ean || '';
+            document.getElementById('modal-prod-desc').value = art.descripcion;
+
+            document.getElementById('modal-producto').classList.remove('hidden');
+            setTimeout(() => document.getElementById('modal-prod-desc').focus(), 150);
+        }
+
+        function cerrarModalProducto() {
+            document.getElementById('modal-producto').classList.add('hidden');
+            productoSeleccionadoCodigo = null;
+        }
+
+        function guardarCambiosProductoGlobal() {
+            const nuevoEan = document.getElementById('modal-prod-ean').value.trim();
+            const nuevaDesc = document.getElementById('modal-prod-desc').value.trim();
+
+            if (!nuevaDesc) {
+                alert("La descripción comercial es obligatoria.");
+                return;
+            }
+
+            let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            if (db[productoSeleccionadoCodigo]) {
+                db[productoSeleccionadoCodigo].ean = nuevoEan;
+                db[productoSeleccionadoCodigo].descripcion = nuevaDesc;
+                
+                localStorage.setItem('inventario_db', JSON.stringify(db));
+                cerrarModalProducto();
+                generarReporteDinamico();
+            }
+        }
+
+        // --- MANEJO TEÓRICO Y RESTO DE FUNCIONES UTILERAS ---
         function modificarHistorialItem(idItem) {
             const val = parseInt(document.getElementById(`input-hist-${idItem}`).value); if (isNaN(val) || val < 0) return;
             let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
