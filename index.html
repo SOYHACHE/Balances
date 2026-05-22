@@ -61,14 +61,13 @@
                 4. Gráficos
             </button>
         </div>
-        
-        <section id="sec-alta" class="bg-white p-6 rounded-xl shadow-md space-y-4 no-print">
+                <section id="sec-alta" class="bg-white p-6 rounded-xl shadow-md space-y-4 no-print">
             <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Ingreso de Producto (Base Teórica)</h2>
             <form id="form-alta" onsubmit="guardarAlta(event)" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Código PLU (Numérico) *</label>
-                        <input type="number" id="alta-codigo" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: 779123456">
+                        <input type="number" id="alta-codigo" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: 1024">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Código EAN / Barras (Opcional)</label>
@@ -96,7 +95,7 @@
         <section id="sec-conteo" class="bg-white p-6 rounded-xl shadow-md space-y-4 hidden no-print">
             <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Conteo Físico de Stock</h2>
             
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Sector de Conteo</label>
                     <div class="flex gap-1 sector-controls">
@@ -106,14 +105,10 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Código PLU (Presiona Enter)</label>
-                    <input type="number" id="conteo-codigo" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Buscar por PLU">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Código EAN (Presiona Enter)</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ingresar PLU o EAN (Presiona Enter)</label>
                     <div class="flex gap-1">
-                        <input type="number" id="conteo-ean" class="flex-1 p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Buscar por EAN">
-                        <button type="button" onclick="encenderEscanner('conteo-ean')" class="bg-gray-700 text-white px-2.5 rounded-lg hover:bg-gray-800">📷</button>
+                        <input type="number" id="conteo-buscador" class="flex-1 p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-bold" placeholder="Escribí o escaneá código">
+                        <button type="button" onclick="encenderEscanner('conteo-buscador')" class="bg-gray-700 text-white px-3 rounded-lg hover:bg-gray-800">📷</button>
                     </div>
                 </div>
             </div>
@@ -124,6 +119,7 @@
             </div>
 
             <form id="form-conteo" onsubmit="guardarConteo(event)" class="space-y-4 border-t pt-4 mt-2">
+                <input type="hidden" id="conteo-plu-activo">
                 <div>
                     <label class="block text-sm font-medium text-gray-500 mb-1">Descripción del Producto Encontrado</label>
                     <input type="text" id="conteo-descripcion" disabled class="w-full p-2.5 border bg-gray-100 rounded-lg text-gray-700 font-bold" value="Aún no se buscó ningún producto">
@@ -227,11 +223,8 @@
             }
             renderizarSectoresSelect();
 
-            document.getElementById('conteo-codigo').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { e.preventDefault(); buscarProductoConteo('plu'); }
-            });
-            document.getElementById('conteo-ean').addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') { e.preventDefault(); buscarProductoConteo('ean'); }
+            document.getElementById('conteo-buscador').addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault(); buscarProductoConteo(); }
             });
             document.getElementById('modal-teorico-input').addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') { e.preventDefault(); guardarCambioTeorico(); }
@@ -255,9 +248,10 @@
             } else if (menu === 'conteo') {
                 document.getElementById('btn-conteo').className = "py-3 px-1 text-center rounded-lg font-medium transition-all bg-green-600 text-white shadow";
                 document.getElementById('form-conteo').reset();
+                document.getElementById('conteo-plu-activo').value = "";
                 document.getElementById('conteo-multiplicador').value = "1";
                 document.getElementById('conteo-descripcion').value = "Aún no se buscó ningún producto";
-                setTimeout(() => document.getElementById('conteo-codigo').focus(), 100);
+                setTimeout(() => document.getElementById('conteo-buscador').focus(), 100);
             } else if (menu === 'reporte') {
                 document.getElementById('btn-reporte').className = "py-3 px-1 text-center rounded-lg font-medium transition-all bg-purple-600 text-white shadow";
                 generarReporteDinamico();
@@ -318,7 +312,7 @@
                 (decodedText) => {
                     document.getElementById(targetInputId).value = decodedText;
                     apagarEscanner();
-                    if (targetInputId === 'conteo-ean') buscarProductoConteo('ean');
+                    if (targetInputId === 'conteo-buscador') buscarProductoConteo();
                 },
                 () => {}
             ).catch(err => alert("Error de cámara: " + err));
@@ -351,40 +345,44 @@
             document.getElementById('alta-codigo').focus();
         }
 
-        function buscarProductoConteo(tipo) {
-            const valPlu = document.getElementById('conteo-codigo').value.trim();
-            const valEan = document.getElementById('conteo-ean').value.trim();
+        function buscarProductoConteo() {
+            const busqueda = document.getElementById('conteo-buscador').value.trim();
             const inputDesc = document.getElementById('conteo-descripcion');
             const inputCant = document.getElementById('conteo-cantidad');
+            const hiddenPlu = document.getElementById('conteo-plu-activo');
             
+            if (!busqueda) return;
             const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
-            let encontrado = null;
-
-            if (tipo === 'plu' && valPlu) encontrado = db[valPlu] || null;
-            else if (tipo === 'ean' && valEan) encontrado = Object.values(db).find(p => p.ean === valEan) || null;
+            
+            // Intenta buscar primero asumiendo que es PLU, sino busca por campo EAN
+            let encontrado = db[busqueda] || Object.values(db).find(p => p.ean === busqueda) || null;
 
             if (encontrado) {
-                document.getElementById('conteo-codigo').value = encontrado.codigo;
-                document.getElementById('conteo-ean').value = encontrado.ean || '';
+                hiddenPlu.value = encontrado.codigo; // Guardamos enlace clave
                 inputDesc.value = encontrado.descripcion;
                 inputCant.focus();
                 inputCant.select();
             } else {
+                hiddenPlu.value = "";
                 inputDesc.value = "PRODUCTO NO ENCONTRADO EN ALTA";
-                mostrarMensaje('msg-conteo', 'Código inexistente.', 'error');
+                mostrarMensaje('msg-conteo', 'Código PLU/EAN inexistente.', 'error');
+                document.getElementById('conteo-buscador').select();
             }
         }
 
         function guardarConteo(e) {
             e.preventDefault();
-            const codigo = document.getElementById('conteo-codigo').value.trim();
+            const codigo = document.getElementById('conteo-plu-activo').value;
             const sector = document.getElementById('conteo-sector').value;
             const mult = parseInt(document.getElementById('conteo-multiplicador').value) || 1;
             const unidades = parseInt(document.getElementById('conteo-cantidad').value) || 0;
             const cantidadFinalEfectiva = unidades * mult;
 
             let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
-            if (!db[codigo]) { mostrarMensaje('msg-conteo', 'Carga imposible sin PLU válido.', 'error'); return; }
+            if (!codigo || !db[codigo]) { 
+                mostrarMensaje('msg-conteo', 'Carga imposible sin verificación previa de código.', 'error'); 
+                return; 
+            }
 
             if (!db[codigo].conteos) db[codigo].conteos = {};
             if (!Array.isArray(db[codigo].conteos[sector])) db[codigo].conteos[sector] = [];
@@ -399,9 +397,11 @@
             mostrarMensaje('msg-conteo', `Cargadas ${cantidadFinalEfectiva} un. a ${sector.toUpperCase()}`, 'success');
 
             document.getElementById('form-conteo').reset();
+            document.getElementById('conteo-plu-activo').value = "";
+            document.getElementById('conteo-buscador').value = "";
             document.getElementById('conteo-multiplicador').value = "1";
             document.getElementById('conteo-descripcion').value = 'Aún no se buscó ningún producto';
-            document.getElementById('conteo-codigo').focus();
+            document.getElementById('conteo-buscador').focus();
         }
                     function generarReporteDinamico() {
             const headerRow = document.getElementById('tabla-headers');
@@ -539,7 +539,7 @@
         }
 
         function abrirModificarTeorico(codigo) {
-            productoSeleccionadoCodigo = code = codigo; let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            productoSeleccionadoCodigo = codigo; let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
             document.getElementById('modal-teorico-titulo').innerText = db[codigo].descripcion;
             document.getElementById('modal-teorico-codigo').innerText = `PLU: ${db[codigo].codigo}`;
             document.getElementById('modal-teorico-input').value = db[codigo].teorico;
@@ -573,4 +573,3 @@
     </script>
 </body>
 </html>
-
