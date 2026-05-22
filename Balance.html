@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Stock Adaptable - HAF</title>
+    <!-- Tailwind CSS para diseño moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Estilos de impresión profesionales (Fuerzan la versión de escritorio extendida) */
+        @media print {
+            body {
+                background-color: #fff !important;
+                color: #000 !important;
+                font-size: 10pt !important;
+                padding: 0 !important;
+            }
+            header, .no-print, button, select, input, .nav-tabs, .sector-controls, .modal-backdrop, #vista-movil {
+                display: none !important;
+            }
+            #vista-escritorio {
+                display: block !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .main-card {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+            table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+                margin-top: 20px !important;
+                page-break-inside: auto !important;
+            }
+            tr {
+                page-break-inside: avoid !important;
+                page-break-after: auto !important;
+            }
+            thead {
+                display: table-header-group !important;
+            }
+            th {
+                background-color: #1f2937 !important;
+                color: #fff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                border: 1px solid #d1d5db !important;
+                padding: 6px !important;
+                font-size: 9pt !important;
+                text-transform: uppercase !important;
+            }
+            td {
+                border: 1px solid #d1d5db !important;
+                padding: 6px !important;
+                font-size: 9pt !important;
+            }
+            .cant-link {
+                color: #000 !important;
+                text-decoration: none !important;
+                pointer-events: none !important;
+            }
+            .text-green-600 { color: #16a34a !important; font-weight: bold !important; }
+            .text-red-600 { color: #dc2626 !important; font-weight: bold !important; }
+            .bg-gray-50 { background-color: #f9fafb !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+        .print-only { display: none; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans min-h-screen pb-10">
+
+    <!-- Encabezado Principal -->
+    <header class="bg-blue-600 text-white text-center py-4 shadow-md mb-6 no-print">
+        <h1 class="text-2xl font-bold tracking-wide">Control de Inventario Pro</h1>
+        <p class="text-xs text-blue-200 mt-1">Módulo Multi-Sector con Auditoría Trazable</p>
+    </header>
+
+    <!-- Encabezado de Impresión -->
+    <div class="print-only w-full mb-6">
+        <div style="border-bottom: 3px solid #1f2937; padding-bottom: 10px; margin-bottom: 15px;">
+            <table style="width: 100%; border: none !important; margin: 0 !important;">
+                <tr style="border: none !important;">
+                    <td style="border: none !important; padding: 0; text-align: left;">
+                        <h1 style="font-size: 22pt; font-weight: bold; color: #111827; margin: 0;">INFORME DE INVENTARIO</h1>
+                        <p style="font-size: 10pt; color: #4b5563; margin: 4px 0 0 0;">Consolidado de Diferencias por Sectores Configurados</p>
+                    </td>
+                    <td style="border: none !important; padding: 0; text-align: right; vertical-align: bottom;">
+                        <p style="font-size: 10pt; color: #111827; margin: 0; font-weight: bold;">Fecha de Emisión:</p>
+                        <p id="print-fecha" style="font-size: 10pt; color: #4b5563; margin: 2px 0 0 0;"></p>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-4">
+        <!-- MENÚ DE TRES BOTONES (PESTAÑAS) -->
+        <div class="grid grid-cols-3 gap-2 mb-6 bg-white p-2 rounded-xl shadow-sm no-print nav-tabs">
+            <button id="btn-alta" onclick="cambiarMenu('alta')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-blue-500 text-white shadow">
+                1. Alta Teórico
+            </button>
+            <button id="btn-conteo" onclick="cambiarMenu('conteo')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200">
+                2. Realizar Conteo
+            </button>
+            <button id="btn-reporte" onclick="cambiarMenu('reporte')" class="py-3 px-2 text-center rounded-lg font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200">
+                3. Ver Reporte
+            </button>
+        </div>
+        <!-- SECCIÓN 1: ALTA DE PRODUCTOS (TEÓRICO) -->
+        <section id="sec-alta" class="bg-white p-6 rounded-xl shadow-md space-y-4 no-print">
+            <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Ingreso de Producto (Base Teórica)</h2>
+            <form id="form-alta" onsubmit="guardarAlta(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Código de Producto (Numérico)</label>
+                    <input type="number" id="alta-codigo" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: 779123456">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Descripción / Nombre</label>
+                    <input type="text" id="alta-descripcion" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Aceite de Girasol 1L">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad Teórica (Numérico)</label>
+                    <input type="number" id="alta-cantidad" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: 100">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 transition">
+                    Guardar en Base de Datos
+                </button>
+            </form>
+            <div id="msg-alta" class="hidden text-center text-sm font-medium p-2 rounded-lg"></div>
+        </section>
+
+        <!-- SECCIÓN 2: REALIZAR CONTEO -->
+        <section id="sec-conteo" class="bg-white p-6 rounded-xl shadow-md space-y-4 hidden no-print">
+            <h2 class="text-xl font-semibold text-gray-800 border-b pb-2">Conteo Físico de Stock</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Sector de Conteo</label>
+                    <div class="flex gap-2 sector-controls">
+                        <select id="conteo-sector" class="flex-1 p-2.5 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-700">
+                            <!-- Inyectado dinámicamente -->
+                        </select>
+                        <button onclick="agregarNuevoSector()" type="button" class="bg-blue-600 text-white px-3 rounded-lg font-bold hover:bg-blue-700 transition shadow-sm text-lg" title="Agregar nuevo sector">+</button>
+                        <button onclick="eliminarSectorActual()" type="button" class="bg-red-500 text-white px-3 rounded-lg font-bold hover:bg-red-600 transition shadow-sm" title="Eliminar este sector">x</button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Buscar Código (Presiona Enter)</label>
+                    <input type="number" id="conteo-codigo" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ingresa código y busca">
+                </div>
+            </div>
+
+            <form id="form-conteo" onsubmit="guardarConteo(event)" class="space-y-4 border-t pt-4 mt-2">
+                <div>
+                    <label class="block text-sm font-medium text-gray-500 mb-1">Descripción del Producto Encontrado</label>
+                    <input type="text" id="conteo-descripcion" disabled class="w-full p-2.5 border bg-gray-100 rounded-lg text-gray-700 font-medium" placeholder="Aún no se buscó ningún producto">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Cantidad Contada (Numérico)</label>
+                    <input type="number" id="conteo-cantidad" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Cantidad física actual">
+                </div>
+                <button type="submit" class="w-full bg-green-600 text-white py-2.5 rounded-lg font-medium hover:bg-green-700 transition">
+                    Cargar / Acumular Conteo
+                </button>
+            </form>
+            <div id="msg-conteo" class="hidden text-center text-sm font-medium p-2 rounded-lg"></div>
+        </section>
+
+        <!-- SECCIÓN 3: REPORTE RESPONSIVE DUAL -->
+        <section id="sec-reporte" class="bg-white p-4 md:p-6 rounded-xl shadow-md space-y-4 main-card hidden">
+            <div class="flex justify-between items-center border-b pb-2 no-print">
+                <h2 class="text-lg md:text-xl font-semibold text-gray-800">Cuadro de Diferencias Global</h2>
+                <div class="flex gap-2">
+                    <button onclick="ejecutarImpresion()" class="bg-purple-600 text-white px-4 py-1.5 rounded-lg hover:bg-purple-700 transition font-medium flex items-center gap-1.5 text-xs md:text-sm shadow-sm">
+                        Imprimir Reporte
+                    </button>
+                    <button onclick="limpiarTodo()" class="text-xs bg-red-100 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-200 transition font-medium">
+                        Limpiar Todo
+                    </button>
+                </div>
+            </div>
+            
+            <!-- VISTA A: MONITOR / ESCRITORIO -->
+            <div id="vista-escritorio" class="hidden md:block overflow-x-auto">
+                <table id="tabla-reporte" class="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                        <tr id="tabla-headers" class="bg-gray-800 text-white text-xs uppercase tracking-wider">
+                            <!-- Inyectado dinámicamente -->
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-reporte-body" class="text-sm text-gray-700 divide-y">
+                        <!-- Inyectado dinámicamente -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- VISTA B: PANTALLAS MÓVILES ROTADA -->
+            <div id="vista-movil" class="block md:hidden space-y-6">
+                <!-- Inyectado dinámicamente -->
+            </div>
+
+            <div class="print-only mt-10 text-xs text-gray-400 border-t pt-4 text-center">
+                <p>Este documento es un reporte físico oficial generado por el Módulo Multi-Sector de Inventario.</p>
+                <p class="mt-4 font-medium" style="color: #4b5563;">Firma Autorizada: ___________________________</p>
+            </div>
+        </section>
+    </div>
+
+    <!-- VENTANA MODAL A: COMPONENTES DE CARGAS PARCIALES -->
+    <div id="modal-auditoria" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden no-print z-50 modal-backdrop">
+        <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 mx-4 space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-start border-b pb-2 shrink-0">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 overflow-hidden text-ellipsis" id="modal-titulo-producto">Historial de Cargas</h3>
+                    <p class="text-xs text-gray-500 font-mono mt-0.5" id="modal-subtitulo-codigo">Código: -</p>
+                </div>
+                <button onclick="cerrarModal()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="bg-blue-50 p-3 rounded-lg text-sm text-blue-800 shrink-0">
+                Auditoría del Sector: <span id="modal-txt-sector" class="font-bold uppercase"></span>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-2 pr-1" id="modal-lista-conteos">
+                <!-- Inyectado dinámicamente -->
+            </div>
+            <div class="border-t pt-3 flex justify-end shrink-0">
+                <button onclick="cerrarModal()" class="bg-gray-800 text-white px-5 py-2 rounded-lg font-medium hover:bg-gray-700 transition text-sm">
+                    Cerrar Auditoría
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- VENTANA MODAL B: COMPONENTE DE EDICIÓN DEL STOCK TEÓRICO -->
+    <div id="modal-teorico" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden no-print z-50 modal-backdrop">
+        <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 mx-4 space-y-4">
+            <div class="flex justify-between items-start border-b pb-2">
+                <div>
+                    <h3 class="text-lg font-bold text-gray-900 overflow-hidden text-ellipsis" id="modal-teorico-titulo">Corregir Teórico</h3>
+                    <p class="text-xs text-gray-500 font-mono mt-0.5" id="modal-teorico-codigo">Código: -</p>
+                </div>
+                <button onclick="cerrarModalTeorico()" class="text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
+            </div>
+            <div class="bg-purple-50 p-3 rounded-lg text-sm text-purple-800">
+                Ajuste directo de la <strong>Cantidad Teórica Inicial</strong> del sistema.
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nueva Cantidad Teórica</label>
+                <input type="number" id="modal-teorico-input" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-purple-500 outline-none font-bold text-lg text-center">
+            </div>
+            <div class="grid grid-cols-2 gap-2 pt-2">
+                <button onclick="cerrarModalTeorico()" class="bg-gray-100 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-200 transition text-sm">
+                    Cancelar
+                </button>
+                <button onclick="guardarCambioTeorico()" class="bg-purple-600 text-white py-2.5 rounded-lg font-medium hover:bg-purple-700 transition text-sm shadow">
+                    Guardar Ajuste
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- LÓGICA DE JAVASCRIPT: PARTE A -->
+    <script>
+        let productoSeleccionadoCodigo = null;
+        let sectorSeleccionadoNombre = null;
+
+        // SEGURO DE ARRANQUE: Ejecuta cuando el árbol DOM está completamente estructurado
+        document.addEventListener("DOMContentLoaded", function() {
+            if (!localStorage.getItem('inventario_db')) {
+                localStorage.setItem('inventario_db', JSON.stringify({}));
+            }
+            if (!localStorage.getItem('inventario_sectores')) {
+                localStorage.setItem('inventario_sectores', JSON.stringify(['salón', 'depósito', 'digital']));
+            }
+            renderizarSectoresSelect();
+        });
+
+        // --- MANEJO DE NAVEGACIÓN ---
+        function cambiarMenu(menu) {
+            const secAlta = document.getElementById('sec-alta');
+            const secConteo = document.getElementById('sec-conteo');
+            const secReporte = document.getElementById('sec-reporte');
+
+            const btnAlta = document.getElementById('btn-alta');
+            const btnConteo = document.getElementById('btn-conteo');
+            const btnReporte = document.getElementById('btn-reporte');
+
+            secAlta.classList.add('hidden');
+            secConteo.classList.add('hidden');
+            secReporte.classList.add('hidden');
+
+            [btnAlta, btnConteo, btnReporte].forEach(btn => {
+                btn.className = "py-3 px-2 text-center rounded-lg font-medium transition-all bg-gray-100 text-gray-600 hover:bg-gray-200";
+            });
+
+            if (menu === 'alta') {
+                secAlta.classList.remove('hidden');
+                btnAlta.className = "py-3 px-2 text-center rounded-lg font-medium transition-all bg-blue-500 text-white shadow";
+            } else if (menu === 'conteo') {
+                secConteo.classList.remove('hidden');
+                btnConteo.className = "py-3 px-2 text-center rounded-lg font-medium transition-all bg-green-600 text-white shadow";
+                document.getElementById('form-conteo').reset();
+                document.getElementById('conteo-descripcion').value = "Aún no se buscó ningún producto";
+                renderizarSectoresSelect();
+                setTimeout(() => document.getElementById('conteo-codigo').focus(), 100);
+            } else if (menu === 'reporte') {
+                secReporte.classList.remove('hidden');
+                btnReporte.className = "py-3 px-2 text-center rounded-lg font-medium transition-all bg-purple-600 text-white shadow";
+                generarReporteDinamico();
+            }
+        }
+
+        // --- GESTIÓN DE ÁREAS / SECTORES ---
+        function renderizarSectoresSelect() {
+            const select = document.getElementById('conteo-sector');
+            if (!select) return;
+            const sectores = JSON.parse(localStorage.getItem('inventario_sectores')) || ['salón', 'depósito', 'digital'];
+            const sectorPreviamenteSeleccionado = select.value;
+            
+            select.innerHTML = '';
+            sectores.forEach(sec => {
+                const opt = document.createElement('option');
+                opt.value = sec.toLowerCase();
+                opt.innerText = sec.charAt(0).toUpperCase() + sec.slice(1);
+                select.appendChild(opt);
+            });
+
+            if(sectorPreviamenteSeleccionado && sectores.includes(sectorPreviamenteSeleccionado)) {
+                select.value = sectorPreviamenteSeleccionado;
+            }
+        }
+
+        function agregarNuevoSector() {
+            const nuevoSector = prompt("Ingrese el nombre del nuevo sector:");
+            if (!nuevoSector) return;
+            const sectorClean = nuevoSector.trim().toLowerCase();
+            if (sectorClean === '') return;
+
+            let sectores = JSON.parse(localStorage.getItem('inventario_sectores')) || [];
+            if (sectores.includes(sectorClean)) {
+                alert("Este sector ya existe.");
+                return;
+            }
+
+            sectores.push(sectorClean);
+            localStorage.setItem('inventario_sectores', JSON.stringify(sectores));
+            renderizarSectoresSelect();
+            document.getElementById('conteo-sector').value = sectorClean;
+            mostrarMensaje('msg-conteo', `Sector "${nuevoSector}" añadido.`, 'success');
+        }
+
+        function eliminarSectorActual() {
+            const select = document.getElementById('conteo-sector');
+            const sectorAEliminar = select.value;
+            if (!sectorAEliminar) return;
+
+            let sectores = JSON.parse(localStorage.getItem('inventario_sectores')) || [];
+            if (sectores.length <= 1) {
+                alert("Debe quedar al menos un sector en el sistema.");
+                return;
+            }
+
+            if (confirm(`¿Está seguro de eliminar el sector "${sectorAEliminar.toUpperCase()}"? Se ocultará del reporte.`)) {
+                sectores = sectores.filter(sec => sec !== sectorAEliminar);
+                localStorage.setItem('inventario_sectores', JSON.stringify(sectores));
+                renderizarSectoresSelect();
+                mostrarMensaje('msg-conteo', `Sector eliminado de la lista de control.`, 'success');
+            }
+        }
+
+        // --- MENÚ 1: ENTRADA DE BASE TEÓRICA ---
+        function guardarAlta(e) {
+            e.preventDefault();
+            const codigo = document.getElementById('alta-codigo').value.trim();
+            const descripcion = document.getElementById('alta-descripcion').value.trim();
+            const cantidad = parseInt(document.getElementById('alta-cantidad').value) || 0;
+
+            let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+
+            if (db[codigo]) {
+                db[codigo].descripcion = descripcion;
+                db[codigo].teorico = cantidad; 
+            } else {
+                db[codigo] = { codigo, descripcion, teorico: cantidad, conteos: {} };
+            }
+
+            localStorage.setItem('inventario_db', JSON.stringify(db));
+            mostrarMensaje('msg-alta', 'Producto registrado/actualizado con éxito.', 'success');
+            document.getElementById('form-alta').reset();
+            document.getElementById('alta-codigo').focus();
+        }
+
+        // --- MANEJO DE ENTER Y FOCO INTERACTIVO EN CONTEO ---
+        // Se ejecuta una vez que la ventana termine el mapeo para asegurar la existencia del nodo
+        window.addEventListener("load", function() {
+            const inputCod = document.getElementById('conteo-codigo');
+            if(inputCod) {
+                inputCod.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        buscarProductoConteo();
+                    }
+                });
+            }
+        });
+
+        function buscarProductoConteo() {
+            const codigo = document.getElementById('conteo-codigo').value.trim();
+            const inputDesc = document.getElementById('conteo-descripcion');
+            const inputCant = document.getElementById('conteo-cantidad');
+            if (!codigo) return;
+
+            const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+
+            if (db[codigo]) {
+                inputDesc.value = db[codigo].descripcion;
+                inputCant.focus();
+                inputCant.select();
+            } else {
+                inputDesc.value = "PRODUCTO NO ENCONTRADO EN ALTA";
+                mostrarMensaje('msg-conteo', 'El código no existe en la base teórica.', 'error');
+                document.getElementById('conteo-codigo').select();
+            }
+        }
+
+        function guardarConteo(e) {
+            e.preventDefault();
+            const codigo = document.getElementById('conteo-codigo').value.trim();
+            const sector = document.getElementById('conteo-sector').value;
+            const cantidadContada = parseInt(document.getElementById('conteo-cantidad').value) || 0;
+
+            let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            if (!db[codigo]) {
+                mostrarMensaje('msg-conteo', 'No se puede levantar conteo de un producto inexistente.', 'error');
+                return;
+            }
+
+            if (!db[codigo].conteos) db[codigo].conteos = {};
+            if (!Array.isArray(db[codigo].conteos[sector])) {
+                db[codigo].conteos[sector] = [];
+            }
+
+            const timestamp = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            db[codigo].conteos[sector].push({
+                id: Date.now() + Math.random().toString(36).substr(2, 5),
+                cantidad: cantidadContada,
+                hora: timestamp
+            });
+
+            localStorage.setItem('inventario_db', JSON.stringify(db));
+            mostrarMensaje('msg-conteo', `Unidades cargadas a ${sector.toUpperCase()}.`, 'success');
+            
+            document.getElementById('conteo-codigo').value = '';
+            document.getElementById('conteo-descripcion').value = 'Aún no se buscó ningún producto';
+            document.getElementById('conteo-cantidad').value = '';
+            document.getElementById('conteo-codigo').focus();
+        }
+        // --- GENERACIÓN DEL REPORTE MULTI-ENTORNO (ESCRITORIO / MÓVIL ROTADO) ---
+        function generarReporteDinamico() {
+            const headerRow = document.getElementById('tabla-headers');
+            const tbody = document.getElementById('tabla-reporte-body');
+            const contenedorMovil = document.getElementById('vista-movil');
+            
+            if(!headerRow || !tbody || !contenedorMovil) return;
+
+            headerRow.innerHTML = '';
+            tbody.innerHTML = '';
+            contenedorMovil.innerHTML = '';
+
+            const sectores = JSON.parse(localStorage.getItem('inventario_sectores')) || ['salón', 'depósito', 'digital'];
+            const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            const articulos = Object.values(db);
+
+            // Cabecera Escritorio
+            let htmlHeaders = `<th class="p-3 border">Código</th><th class="p-3 border">Descripción</th>`;
+            sectores.forEach(sec => { htmlHeaders += `<th class="p-3 border text-center">${sec.toUpperCase()}</th>`; });
+            htmlHeaders += `<th class="p-3 border text-center">Teórico</th><th class="p-3 border text-center">Diferencia</th>`;
+            headerRow.innerHTML = htmlHeaders;
+
+            if (articulos.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${sectores.length + 4}" class="p-4 text-center text-gray-400 italic">No hay productos registrados.</td></tr>`;
+                contenedorMovil.innerHTML = `<p class="text-sm text-gray-400 italic text-center py-6">No hay productos registrados.</p>`;
+                return;
+            }
+
+            articulos.forEach(art => {
+                let totalContado = 0;
+                let htmlSectoresEscritorio = '';
+                let htmlSectoresMovilFilas = ''; 
+
+                sectores.forEach(sec => {
+                    let totalSector = 0;
+                    if (art.conteos && Array.isArray(art.conteos[sec])) {
+                        totalSector = art.conteos[sec].reduce((sum, item) => sum + item.cantidad, 0);
+                    }
+                    totalContado += totalSector;
+                    
+                    // Botón Sector Escritorio
+                    htmlSectoresEscritorio += `
+                        <td class="p-3 border text-center">
+                            <button type="button" onclick="abrirAuditoria('${art.codigo}', '${sec}')" class="text-blue-600 font-medium hover:underline block w-full text-center">
+                                ${totalSector}
+                            </button>
+                        </td>`;
+                    
+                    // Botón Sector Celular
+                    htmlSectoresMovilFilas += `
+                        <div class="flex justify-between items-center py-2 border-b border-gray-100 text-sm">
+                            <span class="text-gray-500 font-medium capitalize">${sec}:</span>
+                            <button type="button" onclick="abrirAuditoria('${art.codigo}', '${sec}')" class="text-blue-600 font-bold underline bg-blue-50 px-3 py-1 rounded hover:bg-blue-100 transition">
+                                ${totalSector} un
+                            </button>
+                        </div>`;
+                });
+
+                const diferencia = totalContado - art.teorico;
+                let stringDiferencia = 'Ok';
+                let colorDiferencia = 'text-gray-900 font-semibold';
+                let colorBgMovilDiferencia = 'bg-gray-100 text-gray-800';
+
+                if (diferencia > 0) {
+                    stringDiferencia = `Sobran (${diferencia})`;
+                    colorDiferencia = 'text-green-600 font-bold';
+                    colorBgMovilDiferencia = 'bg-green-100 text-green-800 font-bold';
+                } else if (diferencia < 0) {
+                    stringDiferencia = `Faltan (${Math.abs(diferencia)})`;
+                    colorDiferencia = 'text-red-600 font-bold';
+                    colorBgMovilDiferencia = 'bg-red-100 text-red-800 font-bold';
+                }
+
+                // Pintar Fila Escritorio
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 border font-mono font-medium">${art.codigo}</td>
+                    <td class="p-3 border">${art.descripcion}</td>
+                    ${htmlSectoresEscritorio}
+                    <td class="p-3 border text-center font-medium bg-purple-50/50">
+                        <button type="button" onclick="abrirModificarTeorico('${art.codigo}')" class="text-blue-600 font-bold hover:underline block w-full text-center">
+                            ${art.teorico}
+                        </button>
+                    </td>
+                    <td class="p-3 border text-center ${colorDiferencia}">${stringDiferencia}</td>
+                `;
+                tbody.appendChild(tr);
+
+                // Pintar Tarjeta Móvil
+                const cardMovil = document.createElement('div');
+                cardMovil.className = "bg-white border rounded-xl p-4 shadow-sm space-y-3";
+                cardMovil.innerHTML = `
+                    <div class="bg-gray-800 text-white p-3 -mx-4 -mt-4 rounded-t-xl flex justify-between items-center">
+                        <span class="font-mono text-sm font-semibold tracking-wide">${art.codigo}</span>
+                        <span class="text-xs bg-gray-700 px-2.5 py-0.5 rounded text-gray-300 font-medium">Producto</span>
+                    </div>
+                    <div class="text-base font-bold text-gray-800 pt-1">${art.descripcion}</div>
+                    <div class="bg-gray-50 p-2 rounded-lg border border-dashed border-gray-200">
+                        ${htmlSectoresMovilFilas}
+                    </div>
+                    <div class="flex justify-between items-center py-1.5 text-sm text-gray-600 border-b border-dashed pb-2">
+                        <span>Stock Teórico Base:</span>
+                        <button type="button" onclick="abrirModificarTeorico('${art.codigo}')" class="text-blue-600 font-bold bg-purple-50 border border-purple-200 px-3 py-1 rounded hover:bg-purple-100 transition underline">
+                            ${art.teorico} un
+                        </button>
+                    </div>
+                    <div class="flex justify-between items-center p-2.5 rounded-lg text-sm ${colorBgMovilDiferencia}">
+                        <span>Balance / Diferencia:</span>
+                        <span class="text-base uppercase tracking-wider">${stringDiferencia}</span>
+                    </div>
+                `;
+                contenedorMovil.appendChild(cardMovil);
+            });
+        }
+
+        // --- CONTROL DEL MODAL DE HISTORIAL CRONOLÓGICO ---
+        function abrirAuditoria(codigo, sector) {
+            productoSeleccionadoCodigo = codigo;
+            sectorSeleccionadoNombre = sector;
+
+            const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            const producto = db[codigo];
+            if(!producto) return;
+
+            document.getElementById('modal-titulo-producto').innerText = producto.descripcion;
+            document.getElementById('modal-subtitulo-codigo').innerText = `Código: ${producto.codigo}`;
+            document.getElementById('modal-txt-sector').innerText = sector;
+            
+            const contenedorLista = document.getElementById('modal-lista-conteos');
+            contenedorLista.innerHTML = '';
+
+            if (!producto.conteos) producto.conteos = {};
+            if (!Array.isArray(producto.conteos[sector])) { producto.conteos[sector] = []; }
+
+            const historial = producto.conteos[sector];
+
+            if(historial.length === 0) {
+                contenedorLista.innerHTML = `<p class="text-sm text-gray-400 italic py-4 text-center">No hay registros individuales para este sector.</p>`;
+            } else {
+                historial.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center justify-between bg-gray-50 p-3 border rounded-lg hover:bg-gray-100 transition";
+                    div.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-md font-medium">Carga N° ${index + 1}</span>
+                            <span class="text-xs text-gray-400 font-mono">${item.hora} hs</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="number" id="input-hist-${item.id}" value="${item.cantidad}" class="w-16 p-1 border rounded text-center font-bold focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                            <button type="button" onclick="modificarHistorialItem('${item.id}')" class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs font-semibold hover:bg-blue-200">Editar</button>
+                            <button type="button" onclick="eliminarHistorialItem('${item.id}')" class="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-semibold hover:bg-red-200">&times;</button>
+                        </div>
+                    `;
+                    contenedorLista.appendChild(div);
+                });
+            }
+            document.getElementById('modal-auditoria').classList.remove('hidden');
+        }
+
+        function cerrarModal() {
+            document.getElementById('modal-auditoria').classList.add('hidden');
+            productoSeleccionadoCodigo = null;
+            sectorSeleccionadoNombre = null;
+        }
+
+        function modificarHistorialItem(idItem) {
+            const nuevoValor = parseInt(document.getElementById(`input-hist-${idItem}`).value);
+            if (isNaN(nuevoValor) || nuevoValor < 0) {
+                alert("Ingrese un número válido.");
+                return;
+            }
+
+            let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            let historial = db[productoSeleccionadoCodigo].conteos[sectorSeleccionadoNombre];
+
+            const item = historial.find(i => i.id === idItem);
+            if(item) {
+                item.cantidad = nuevoValor;
+                localStorage.setItem('inventario_db', JSON.stringify(db));
+                generarReporteDinamico();
+                alert("Registro actualizado.");
+            }
+        }
+
+        function eliminarHistorialItem(idItem) {
+            if(confirm("¿Querés eliminar esta carga parcial?")) {
+                let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+                let historial = db[productoSeleccionadoCodigo].conteos[sectorSeleccionadoNombre];
+
+                db[productoSeleccionadoCodigo].conteos[sectorSeleccionadoNombre] = historial.filter(i => i.id !== idItem);
+                localStorage.setItem('inventario_db', JSON.stringify(db));
+                
+                abrirAuditoria(productoSeleccionadoCodigo, sectorSeleccionadoNombre);
+                generarReporteDinamico();
+            }
+        }
+
+        // --- CONTROL DEL MODAL STOCK TEÓRICO ---
+        function abrirModificarTeorico(codigo) {
+            productoSeleccionadoCodigo = codigo;
+            const db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            const producto = db[codigo];
+            if(!producto) return;
+
+            document.getElementById('modal-teorico-titulo').innerText = producto.descripcion;
+            document.getElementById('modal-teorico-codigo').innerText = `Código: ${producto.codigo}`;
+            document.getElementById('modal-teorico-input').value = producto.teorico;
+
+            document.getElementById('modal-teorico').classList.remove('hidden');
+            setTimeout(() => document.getElementById('modal-teorico-input').focus(), 100);
+        }
+
+        function cerrarModalTeorico() {
+            document.getElementById('modal-teorico').classList.add('hidden');
+            productoSeleccionadoCodigo = null;
+        }
+
+        function guardarCambioTeorico() {
+            const nuevoTeorico = parseInt(document.getElementById('modal-teorico-input').value);
+            if (isNaN(nuevoTeorico) || nuevoTeorico < 0) {
+                alert("Ingrese una cantidad teórica válida.");
+                return;
+            }
+
+            let db = JSON.parse(localStorage.getItem('inventario_db')) || {};
+            if(db[productoSeleccionadoCodigo]) {
+                db[productoSeleccionadoCodigo].teorico = nuevoTeorico;
+                localStorage.setItem('inventario_db', JSON.stringify(db));
+                
+                cerrarModalTeorico();
+                generarReporteDinamico();
+            }
+        }
+
+        // --- UTILERÍA GLOBAL Y REPORTES DE MENSAJES ---
+        function ejecutarImpresion() {
+            const ahora = new Date();
+            const opciones = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            document.getElementById('print-fecha').innerText = ahora.toLocaleDateString('es-ES', opciones) + ' hs';
+            window.print();
+        }
+
+        function mostrarMensaje(elementId, texto, tipo) {
+            const el = document.getElementById(elementId);
+            if(!el) return;
+            el.innerText = texto;
+            el.classList.remove('hidden', 'bg-green-100', 'text-green-800', 'bg-red-100', 'text-red-800');
+            el.classList.add(tipo === 'success' ? 'bg-green-100' : 'bg-red-100', tipo === 'success' ? 'text-green-800' : 'text-red-800');
+            setTimeout(() => el.classList.add('hidden'), 2500);
+        }
+
+        function limpiarTodo() {
+            if (confirm('¿Desea vaciar por completo la información de conteos y áreas de este navegador?')) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
