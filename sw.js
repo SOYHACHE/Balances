@@ -1,32 +1,35 @@
-const CACHE_NAME = 'stock-haf-cache-v1';
-const urlsToCache = [
-  'index.html',
-  'manifest.json'
+const CACHE_NAME = 'inventario-v2'; // <--- Cambiá el nombre de la versión cada vez que actualices el HTML
+const assets = [
+  'Balance.html',
+  'manifest.json',
+  'icon-192.png'
 ];
 
-// Instalación y almacenamiento en caché de la estructura base
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
-      .then(() => self.skipWaiting())
+// 1. Instalación: Forzar al nuevo SW a tomar el control de inmediato
+self.addEventListener('install', electoral => {
+  electoral.waitUntil(
+    caches.open(CACHE_NAME).then(cache => {
+      return cache.addAll(assets);
+    }).then(() => self.skipWaiting()) // <--- CRÍTICO: Activa el nuevo SW sin esperar a que cierres la app
   );
 });
 
-// Activación del SW
-self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+// 2. Activación: Limpiar cachés viejas automáticamente
+self.addEventListener('activate', electoral => {
+  electoral.waitUntil(
+    caches.keys().then(keys => {
+      return Promise.all(
+        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+      );
+    }).then(() => self.clients.claim()) // <--- CRÍTICO: Toma el control de las pestañas activas ya mismo
+  );
 });
 
-// Intercepción de peticiones para trabajar Offline
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          return response; // Retorna desde caché si existe
-        }
-        return fetch(event.request); // Si no va a buscar a la red
-      })
+// 3. Estrategia de Red: Network First o Cache First según prefieras
+self.addEventListener('fetch', electoral => {
+  electoral.respondWith(
+    caches.match(electoral.request).then(cachedResponse => {
+      return cachedResponse || fetch(electoral.request);
+    })
   );
 });
